@@ -51,7 +51,7 @@ Ao abrir a página (`window.onload`), o sistema:
 
 Há também um modo alternativo de **importação manual via Excel** (`#uploadExcel`), atualmente disponível como botão oculto (`hidden`), e uma função `generateMockData()` para gerar dados fictícios em ambiente de testes.
 
-> 📄 Veja a estrutura completa das abas/colunas esperadas em [`docs/MODELO_DADOS.md`](docs/MODELO_DADOS.md).
+> 📄 Veja a estrutura completa das abas/colunas esperadas em [`MODELO_DADOS.md`](MODELO_DADOS.md).
 
 ---
 
