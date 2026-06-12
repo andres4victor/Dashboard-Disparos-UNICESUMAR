@@ -79,7 +79,7 @@ Como é um arquivo estático, pode ser hospedado em qualquer servidor web simple
 | Capacidade Compartilhada | `CAPACIDADE_MAX` (linha ~464) | Valor padrão: `20.000.000` |
 | Tema padrão | `applySavedTheme()` | Usa preferência salva no navegador ou do sistema |
 
-> ⚠️ Alterar essas constantes impacta **todos os cálculos de KPI, cores e gráficos**. Veja detalhes em [`docs/GUIA_CONFIGURACAO.md`](docs/GUIA_CONFIGURACAO.md).
+> ⚠️ Alterar essas constantes impacta **todos os cálculos de KPI, cores e gráficos**. Veja detalhes em [`ARQUITETURA.md`](ARQUITETURA.md).
 
 ---
 
