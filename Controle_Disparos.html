@@ -1,0 +1,1122 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Relatório CRM Real-Time 2026</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; color: #1e293b; }
+        .report-card { background: white; border-radius: 12px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); border: 1px solid #e2e8f0; }
+        .chart-container { position: relative; height: 200px; display: flex; align-items: flex-end; justify-content: space-between; padding-top: 40px; margin-top: 20px; border-bottom: 2px solid #e2e8f0; }
+        .meta-line { position: absolute; top: 80px; opacity: 0.3; left: 0; right: 0; border-top: 2px dashed #ef4444; z-index: 10; pointer-events: none; }
+        .meta-label { position: absolute; top: -22px; left: 0; color: #ef4444; font-weight: 800; font-size: 10px; }
+
+        .bar-group { display: flex; align-items: flex-end; gap: 2px; flex: 1; justify-content: center; height: 100%; position: relative; cursor: pointer; transition: all 0.3s ease; border-radius: 8px 8px 0 0; }
+        .bar-group:hover { background-color: rgba(0,0,0,0.02); }
+
+        .chart-filtered .bar-group:not(.active) { opacity: 0.1; filter: grayscale(20%); }
+        .chart-filtered .bar-group.active { opacity: 1; filter: none; transform: scale(1.02); }
+        .bar-group.active::after { content: ''; position: absolute; bottom: -2px; left: 15%; right: 15%; height: 2px; background: #3b82f6; }
+
+        .bi-bar { width: 25px; position: relative; transition: height 0.5s ease-in-out; border-radius: 2px 2px 0 0; }
+        .bar-v25 { background-color: #1e3a8a; }
+        .bar-v26 { background-color: #60a5fa; }
+
+/* Label em cima da barra */
+.bar-value-v {
+    position: absolute;
+    bottom: 100%;             /* fica logo acima da barra */
+    left: 50%;
+    transform: translateX(-50%);
+    margin-bottom: 4px;       /* espaço entre barra e texto */
+    font-size: 9px;
+    font-weight: 700;
+    white-space: nowrap;
+    color: #0f172a;           /* slate-900 para modo claro */
+    text-shadow: 0 1px 2px rgba(255,255,255,0.7); /* ajuda no contraste em cima de fundo claro */
+}
+        .month-name { position: absolute; bottom: -22px; font-size: 10px; color: #64748b; font-weight: 600; }
+
+        .table-mini { font-size: 11px; width: 100%; }
+        .table-mini th { padding: 6px; background-color: #f8fafc; color: #64748b; font-weight: 800; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; text-align: center; }
+        .table-mini td { padding: 6px; border-bottom: 1px solid #f1f5f9; text-align: center; }
+        .weight-badge { background-color: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-weight: 700; }
+
+        .comparison-gap { gap: 20px !important; }
+
+        @keyframes pulse-soft {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        .update-tag { animation: pulse-soft 3s infinite; }
+
+        /* Estilo Discreto para o Filtro */
+        #filterBanner {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            color: #64748b;
+        }
+
+        /* Notificações Toast */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            border-radius: 8px;
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            transform: translateY(100px);
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .toast.show { transform: translateY(0); }
+        .toast-success { background-color: #10b981; }
+        .toast-error { background-color: #ef4444; }
+
+       /* ---------- DARK MODE: camadas de fundo e texto ---------- */
+
+/* Fundo geral da página */
+.dark body {
+    background-color: #020617; /* slate-950 */
+    color: #e5e7eb;            /* slate-200 */
+}
+
+/* Cards, header, áreas de conteúdo (surface) */
+.dark .report-card,
+.dark header,
+.dark #filterBanner {
+    background-color: #020617;      /* slate-950 */
+    border-color: #1f2937;          /* slate-800 */
+}
+
+/* Deixar os cards um pouco mais claros que o fundo da página */
+.dark .report-card {
+    background-color: #0f172a;      /* slate-900 */
+    box-shadow: 0 10px 25px rgba(15,23,42,0.7);
+}
+
+/* Header ligeiramente destacado */
+.dark header {
+    background-color: #020617;
+}
+
+/* Banner de filtro */
+.dark #filterBanner {
+    background-color: #0b1120;      /* slate-950 mais claro */
+    color: #cbd5f5;                 /* azul/sla­te claro */
+    border-color: #1f2937;
+}
+
+/* Textos principais, títulos, KPIs */
+.dark h1,
+.dark h2,
+.dark h3,
+.dark .text-slate-800,
+.dark .text-slate-700 {
+    color: #e5e7eb; /* slate-200 */
+}
+
+/* Textos secundários / labels */
+.dark .text-slate-500,
+.dark .text-slate-400 {
+    color: #94a3b8; /* slate-400 */
+}
+
+/* Inputs / campo de URL */
+.dark input[type="text"] {
+    background-color: #020617;
+    border-color: #334155; /* slate-700 */
+    color: #e5e7eb;
+}
+
+.dark input[type="text"]::placeholder {
+    color: #64748b; /* slate-500 */
+}
+
+/* Tabelas */
+.dark .table-mini th {
+    background-color: #020617; /* slate-950 */
+    color: #94a3b8;            /* slate-400 */
+    border-bottom-color: #1f2937;
+}
+
+.dark .table-mini td {
+    border-bottom-color: #0f172a; /* slate-900 */
+}
+
+/* Badges de peso */
+.dark .weight-badge {
+    background-color: #1d4ed8; /* blue-700 */
+    color: #dbeafe;            /* blue-100 */
+}
+
+/* Toasts já tinham cor; só reforçamos texto */
+.dark .toast span {
+    color: #f9fafb; /* slate-50 */
+}
+
+.dark #kpi-realizado {
+    color: #22c55e; /* green-500 */
+}
+
+.dark #kpi-projetado {
+    color: #eab308; /* yellow-500 */
+}
+
+.dark #kpi-uso-alunos {
+    color: #38bdf8; /* sky-400 */
+}
+
+.dark #kpi-uso-geral {
+    color: #f97316; /* orange-500 */
+}
+
+/* Botão IMPORTAR no modo escuro */
+.dark #btnImport {
+    background-color: #020617;   /* slate-950 */
+    border-color: #334155;       /* slate-700 */
+    color: #e5e7eb;              /* slate-200 */
+}
+
+.dark #btnImport:hover {
+    background-color: #111827;   /* slate-900 */
+}
+
+/* Botão de modo escuro no modo escuro */
+.dark #themeToggle {
+    background-color: #020617;
+    border-color: #334155;
+    color: #e5e7eb;
+}
+
+.dark #themeToggle:hover {
+    background-color: #111827;
+}
+
+.dark #btnUpdate {
+    background-color: #0f172a;   /* slate-900 */
+    border-color: #1f2937;       /* slate-800 se adicionar border */
+}
+
+.bar-value-v {
+    /* ... as propriedades acima ... */
+    padding: 2px 4px;
+    border-radius: 999px;
+    background-color: rgba(255,255,255,0.85);
+    color: #0f172a;
+}
+
+.dark .bar-value-v {
+    background-color: rgba(15,23,42,0.85);
+    color: #e5e7eb;
+}
+
+.dark .table-empty-message {
+    color: #94a3b8; /* slate-400 */
+}
+
+.kpi-group-box {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    box-shadow: 0 2px 4px rgba(15, 23, 42, 0.04);
+    overflow: hidden;
+    min-width: 0;
+}
+
+.kpi-group-box .report-card {
+    min-width: 0;
+}
+
+.dark .kpi-group-box {
+    background: #0b1120;
+    border-color: #1f2937;
+    box-shadow: 0 8px 24px rgba(2, 6, 23, 0.35);
+}
+    </style>
+</head>
+<body class="p-4 transition-colors duration-300">
+
+    <!-- Container de Toasts -->
+    <div id="toastContainer"></div>
+
+    <div class="max-w-7xl mx-auto">
+        <!-- Header -->
+        <header class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4 bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+            <div>
+                <h1 class="text-xl font-black text-slate-800 uppercase tracking-tight">Controle Disparos <span class="text-blue-600">SocketLabs</span> - Unicesumar</h1>
+                <div class="flex items-center gap-2 mt-0.5">
+                    <span class="text-slate-500 text-[10px] font-bold uppercase tracking-tighter">Atualizado até:</span>
+                    <span id="lastUpdateDate" class="update-tag bg-slate-50 text-slate-500 px-2 py-0.5 rounded text-[10px] font-bold border border-slate-100 tracking-tight">Carregando...</span>
+                </div>
+            </div>
+
+            <div class="flex flex-col md:flex-row items-center gap-2 w-full md:w-auto">
+                <div hidden class="relative w-full md:w-64">
+                    <input type="text" id="sheetUrl" placeholder="Link .csv da planilha" class="text-[10px] border p-2 pr-8 rounded w-full outline-none focus:ring-1 ring-blue-400 transition-all">
+                    <button onclick="clearSavedLink()" class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-300 hover:text-red-500 transition-colors">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+                <div hidden>
+                <button hidden id="btnUpdate" onclick="fetchOnlineData()" class="bg-slate-800 hover:bg-black text-white px-3 py-2 rounded font-bold text-[10px] flex items-center gap-2 transition-all">
+                    <i class="fa-solid fa-rotate"></i> ATUALIZAR
+                </button>
+                </div>
+                <label id="btnImport" hidden
+       class="cursor-pointer bg-white hover:bg-slate-50 text-slate-700 px-3 py-2 rounded font-bold text-[10px] flex items-center gap-2 border border-slate-200 shadow-sm">
+    <i class="fa-solid fa-upload"></i> IMPORTAR
+    <input type="file" id="uploadExcel" accept=".xlsx, .xls" class="hidden">
+</label>
+                <button id="themeToggle"
+        class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded font-bold text-[10px] flex items-center gap-2 border border-slate-200">
+    <i class="fa-solid fa-moon" id="icon-moon"></i>
+    <i class="fa-solid fa-sun hidden" id="icon-sun"></i>
+</button>
+            </div>
+        </header>
+
+        <!-- Banner de Filtro Discreto -->
+        <div id="filterBanner" class="hidden mb-4 p-2 px-4 rounded-lg flex justify-between items-center shadow-sm border border-slate-200">
+            <div class="flex items-center gap-2">
+                <i class="fa-solid fa-circle-info text-[10px] text-blue-500"></i>
+                <span class="text-[10px] font-bold uppercase tracking-widest">Exibindo detalhes de: <span id="selectedMonthName" class="text-slate-800">...</span></span>
+            </div>
+            <button onclick="selectMonth(null)" class="text-blue-600 hover:text-blue-800 text-[10px] font-black uppercase tracking-tighter decoration-dotted underline underline-offset-2">Remover Filtro</button>
+        </div>
+
+<!-- KPIs -->
+<div class="mb-6">
+    <div class="grid grid-cols-1 xl:grid-cols-5 gap-4 items-start">
+
+        <!-- Caixa 11.7M -->
+        <div class="kpi-group-box xl:col-span-3 p-4 md:p-5">
+            <div class="flex items-center justify-between mb-4 gap-3">
+                <div>
+  <h2 class="text-sm font-black text-slate-800 uppercase tracking-tight">Meta CRM Alunos</h2>
+  <p
+    id="meta-status-text"
+    class="text-[10px] text-slate-500 font-black uppercase tracking-wider mt-1"
+  >
+    Carregando status da meta...
+  </p>
+</div>
+                <span class="text-[10px] font-black text-blue-600 bg-blue-50 px-2 py-1 rounded border border-blue-100 whitespace-nowrap">
+                    Base cálculo: 11.7M
+                </span>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="report-card p-4 text-center">
+                    <span class="text-[9px] text-slate-400 font-extrabold uppercase tracking-wider">
+                        Realizado <span class="current-filter-label">...</span>
+                    </span>
+                    <div class="text-lg font-black text-slate-800" id="kpi-realizado">0M</div>
+                    <div class="text-[10px] font-bold text-red-500" id="kpi-pct-meta">0%</div>
+                </div>
+
+                <div class="report-card p-4 text-center">
+                    <span class="text-[9px] text-slate-400 font-extrabold uppercase tracking-wider">Projetado Total</span>
+                    <div class="text-lg font-black text-slate-700" id="kpi-projetado">0M</div>
+                    <div class="text-[10px] font-bold text-slate-500" id="kpi-projetado-pct">0%</div>
+                </div>
+
+                <div id="card-saldo-meta" class="report-card p-4 text-center border-b-2">
+                    <span class="text-[9px] text-slate-400 font-extrabold uppercase tracking-wider">Saldo Disponível</span>
+                    <div class="text-lg font-black" id="kpi-saldo">0%</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Caixa 20M -->
+        <div class="kpi-group-box xl:col-span-2 p-4 md:p-5">
+            <div class="flex items-center justify-between mb-4 gap-3">
+                <div>
+                    <h2 class="text-sm font-black text-slate-800 uppercase tracking-tight">Capacidade Compartilhada</h2>
+                    <p class="text-[11px] text-slate-400 font-bold uppercase tracking-wider">
+                        CRM Alunos + CRM Mercado
+                    </p>
+                </div>
+                <span class="text-[10px] font-black text-amber-600 bg-amber-50 px-2 py-1 rounded border border-amber-100 whitespace-nowrap">
+                    Base cálculo: 20M
+                </span>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="report-card p-4 text-center border-b-2 border-b-blue-500">
+                    <span class="text-[9px] text-slate-400 font-extrabold uppercase tracking-wider">Uso Alunos</span>
+                    <div class="text-lg font-black text-blue-600" id="kpi-uso-alunos">0%</div>
+                </div>
+
+                <div id="card-uso-geral" class="report-card p-4 text-center border-b-2">
+                    <span class="text-[9px] text-slate-400 font-extrabold uppercase tracking-wider">Uso Geral</span>
+                    <div class="text-lg font-black" id="kpi-uso-geral">0M</div>
+                    <div class="text-[10px] font-bold" id="kpi-uso-geral-pct">0%</div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+        <!-- Gráficos -->
+        <div class="grid grid-cols-1 lg:grid-cols-10 gap-6 mb-8">
+            <div class="lg:col-span-6 report-card p-6">
+                <h3 class="text-center text-slate-500 font-bold text-[12px] uppercase mb-2 tracking-widest">Sazonalidade Mensal</h3>
+                <div class="chart-container" id="mainChart">
+                    <div class="meta-line"><span class="meta-label">META: 11.7M</span></div>
+                </div>
+                <div class="flex justify-center gap-6 mt-10">
+                    <div class="flex items-center gap-2 text-[9px] font-bold text-slate-400"><span class="w-2 h-2 bg-[#1e3a8a] rounded-sm"></span> 2025</div>
+                    <div class="flex items-center gap-2 text-[9px] font-bold text-slate-400"><span class="w-2 h-2 bg-[#60a5fa] rounded-sm"></span> 2026</div>
+                </div>
+            </div>
+
+            <div class="lg:col-span-4 report-card p-6">
+                <h3 class="text-center text-slate-500 font-bold text-[10px] uppercase mb-6 tracking-widest">Foco <span class="current-filter-label">...</span></h3>
+                <div class="chart-container justify-center comparison-gap" id="comparativoMarco"></div>
+
+                <!-- Novas informações de referência solicitadas
+                <div class="mt-10 pt-4 border-t border-slate-100 flex flex-col gap-2">
+                    <div class="flex justify-between items-center px-2">
+                        <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Meta mês:</span>
+                        <span class="text-[10px] font-black text-slate-700">11.7 Milhões</span>
+                    </div>
+                    <div class="flex justify-between items-center px-2">
+                        <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Pacote Geral Mensal:</span>
+                        <span class="text-[10px] font-black text-slate-700">20 Milhões</span>
+                    </div>
+                </div>-->
+            </div>
+        </div>
+
+        <!-- Tabelas -->
+        <div class="mb-4 flex items-center gap-3">
+            <h2 class="text-sm font-black text-slate-800 uppercase tracking-tighter">Eventos do Mês (<span class="current-filter-label">...</span>)</h2>
+            <div class="h-px bg-slate-200 flex-1"></div>
+        </div>
+
+       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <div class="report-card overflow-hidden">
+                <div class="bg-slate-800 p-2 text-white flex justify-between font-bold text-[10px] uppercase items-center">
+                    <span>Agendados</span>
+                    <span id="sum-agendados" class="bg-slate-700 px-2 py-0.5 rounded">0M</span>
+                </div>
+                <div class="max-h-[250px] overflow-y-auto">
+                    <table class="table-mini" id="table-agendados">
+<thead><tr><th>Dia</th><th>Base</th><th>Peso</th><th>Chamado</th><th>Tema</th></tr></thead>                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="report-card overflow-hidden">
+    <div class="bg-amber-500 p-2 text-white flex justify-between font-bold text-[10px] uppercase items-center">
+        <span>Pausados</span>
+        <span id="sum-pausados-status" class="bg-amber-600 px-2 py-0.5 rounded">0M</span>
+    </div>
+    <div class="max-h-[250px] overflow-y-auto">
+        <table class="table-mini" id="table-pausados-status">
+<thead><tr><th>Dia</th><th>Base</th><th>Peso</th><th>Chamado</th><th>Status</th></tr></thead>            <tbody></tbody>
+        </table>
+    </div>
+</div>
+
+            <div class="report-card overflow-hidden">
+                <div class="bg-blue-600 p-2 text-white flex justify-between font-bold text-[10px] uppercase items-center">
+                    <span>Enviados</span>
+                    <span id="sum-pausados" class="bg-blue-700 px-2 py-0.5 rounded">0M</span>
+                </div>
+                <div class="max-h-[250px] overflow-y-auto">
+                    <table class="table-mini" id="table-pausados">
+                        <thead><tr><th>Dia</th><th>Base</th><th>Peso</th><th>Chamado</th><th>Status</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="report-card overflow-hidden">
+                <div class="bg-red-600 p-2 text-white flex justify-between font-bold text-[10px] uppercase items-center">
+                    <span>Cancelados</span>
+                    <span id="sum-cancelados" class="bg-red-700 px-2 py-0.5 rounded">0M</span>
+                </div>
+                <div class="max-h-[250px] overflow-y-auto">
+                    <table class="table-mini" id="table-cancelados">
+                        <thead><tr><th>Dia</th><th>Base</th><th>Peso</th><th>Chamado</th><th>Tema</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const META_ALUNOS = 11700000;
+        const CAPACIDADE_MAX = 20000000;
+        const meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+        const STORAGE_KEY = 'crm_dashboard_sheet_url';
+
+        // COLOQUE O SEU LINK DA PLANILHA AQUI DENTRO DAS ASPAS:
+const URL_PLANILHA_FIXA = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRMb6LMVUewtZm9KEhwTO6Z6jzuF6IcGVzbWCUX7xbd1Kyxn4sZXVXkCCb9whEW4IjhdUcE9Ath275H/pub?output=xlsx';
+
+        let rawData = null;
+        let selectedMonth = null;
+
+        // =========================================================
+// 2. FUNÇÕES AUXILIARES
+// =========================================================
+function getDaysInMonth(date) {
+    return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+}
+
+function formatPctBR(value) {
+    return `${value.toFixed(2).replace('.', ',')}%`;
+}
+
+function formatSignedPctBR(value) {
+    const abs = Math.abs(value).toFixed(2).replace('.', ',');
+    if (value > 0) return `+${abs}%`;
+    if (value < 0) return `-${abs}%`;
+    return `0,00%`;
+}
+
+function calcularStatusMetaTemporal(rawUpdate, realizado, metaMensal) {
+    const updateDate = excelValueToDate(rawUpdate);
+    if (!updateDate || !metaMensal) return null;
+
+    const diaAtualizacao = updateDate.getDate();
+    const diasNoMes = getDaysInMonth(updateDate);
+
+    const percentualIdeal = (diaAtualizacao / diasNoMes) * 100;
+    const percentualAtual = (realizado / metaMensal) * 100;
+    const diferenca = percentualIdeal - percentualAtual;
+
+    return {
+        updateDate,
+        diaAtualizacao,
+        diasNoMes,
+        percentualIdeal,
+        percentualAtual,
+        diferenca,
+        dentroDaMeta: diferenca >= 0
+    };
+}
+
+/* FUNÇÃO LINK FIXO */
+window.onload = function() {
+    // Aplica o link fixo direto no input invisível (para a função fetchOnlineData não dar erro)
+    document.getElementById('sheetUrl').value = URL_PLANILHA_FIXA;
+
+    // Tenta atualizar automaticamente a tela ao abrir a página
+    fetchOnlineData(true);
+
+    applySavedTheme(); // Se houver a função do tema
+};
+
+       /* FUNÇÃO LINK ONLINE */
+       /*window.onload = function() {
+            const savedUrl = localStorage.getItem(STORAGE_KEY);
+            if (savedUrl) {
+                document.getElementById('sheetUrl').value = savedUrl;
+                fetchOnlineData(true);
+            } else {
+                generateMockData();
+            }
+        };*/
+
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+
+            const icon = type === 'success' ? 'fa-circle-check' : 'fa-circle-exclamation';
+            toast.innerHTML = `<i class="fa-solid ${icon}"></i> <span>${message}</span>`;
+
+            container.appendChild(toast);
+
+            setTimeout(() => toast.classList.add('show'), 10);
+
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        function generateMockData() {
+            const mock = {
+                "Config": [{ "Ultima atualizacao": "02/04/2026 15:00" }],
+                "Historico": meses.map(m => ({Mes: m, v25: 7000000 + Math.random()*5000000, v26: ['Jan','Fev','Mar','Abr'].includes(m) ? 8000000 + Math.random()*6000000 : 0})),
+                "Campanhas": [
+                    {Dia: '05/04', Base: 2500000, Status: 'Enviado', Tema: 'Welcome Back', MesRef: 'Abr'},
+                    {Dia: '12/04', Base: 4500000, Status: 'Agendado', Tema: 'Flash Sale', MesRef: 'Abr'}
+                ],
+                "Geral": meses.map(m => ({Mes: m, Realizado: ['Jan','Fev','Mar','Abr'].includes(m) ? 6000000 + Math.random()*4000000 : 0, Projetado: 12000000, UsoGeral: 18000000}))
+            };
+            rawData = mock;
+            autoFilterByUpdateDate(rawData);
+            renderDashboard(rawData);
+        }
+
+        function formatMillions(value) {
+            if (value >= 1000000) return (value / 1000000).toFixed(2) + 'M';
+            if (value >= 1000) return (value / 1000).toFixed(1) + 'K';
+            return value.toString();
+        }
+
+        function excelValueToDate(value) {
+    if (value == null || value === '') return null;
+
+    // Já é Date
+    if (value instanceof Date) return value;
+
+    // Serial numérico (Excel / Google Sheets)
+    if (typeof value === 'number') {
+        // Excel/Sheets: dia 1 = 31/12/1899, base prática = 30/12/1899[web:81][web:86]
+        const base = new Date(1899, 11, 30); // 30/12/1899 (mês 11 = dezembro)
+
+        const wholeDays = Math.floor(value);
+        const dayMs     = wholeDays * 24 * 60 * 60 * 1000;
+
+        const frac      = value - wholeDays;           // parte de hora/minuto, se existir
+        const fracMs    = Math.round(frac * 24 * 60 * 60 * 1000);
+
+        return new Date(base.getTime() + dayMs + fracMs);
+    }
+
+    // String tipo dd/mm ou dd/mm/aaaa
+    if (typeof value === 'string') {
+        const parts = value.split('/');
+        if (parts.length >= 2) {
+            const dia  = parseInt(parts[0], 10);
+            const mes  = parseInt(parts[1], 10) - 1;
+            const ano  = parts.length >= 3 ? parseInt(parts[2], 10) : (new Date()).getFullYear();
+            return new Date(ano, mes, dia);
+        }
+    }
+
+    return null;
+}
+
+function formatDatePtBr(value) {
+    const d = excelValueToDate(value);
+    return d ? d.toLocaleDateString('pt-BR') : '';
+}
+
+function getDaysInMonth(date) {
+  return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+}
+
+function formatPctBR(value) {
+  return `${value.toFixed(2).replace('.', ',')}%`;
+}
+
+function formatSignedPctBR(value) {
+  const abs = Math.abs(value).toFixed(2).replace('.', ',');
+  if (value > 0) return `+${abs}%`;
+  if (value < 0) return `-${abs}%`;
+  return `0,00%`;
+}
+
+function calcularStatusMetaTemporal(rawUpdate, realizado, metaMensal) {
+  const updateDate = excelValueToDate(rawUpdate);
+  if (!updateDate || !metaMensal) return null;
+
+  const diaAtualizacao = updateDate.getDate();
+  const diasNoMes = getDaysInMonth(updateDate);
+
+  const percentualIdeal = (diaAtualizacao / diasNoMes) * 100;
+  const percentualAtual = (realizado / metaMensal) * 100;
+  const diferenca = percentualIdeal - percentualAtual;
+
+  return {
+    updateDate,
+    diaAtualizacao,
+    diasNoMes,
+    percentualIdeal,
+    percentualAtual,
+    diferenca,
+    dentroDaMeta: diferenca >= 0
+  };
+}
+
+        function autoFilterByUpdateDate(data) {
+    const config = data["Config"] || [];
+    let rawUpdate = null;
+
+    for (let row of config) {
+        if (row['Última atualização'] != null && row['Última atualização'] !== '') {
+            rawUpdate = row['Última atualização'];
+            break;
+        }
+    }
+
+    const d = excelValueToDate(rawUpdate);
+    if (d) {
+        const monthIdx = d.getMonth(); // 0-11
+        if (monthIdx >= 0 && monthIdx < 12) {
+            selectedMonth = meses[monthIdx]; // usa seu array ['Jan','Fev',...]
+        }
+    }
+
+    if (!selectedMonth) selectedMonth = 'Jan';
+}
+
+        async function fetchOnlineData(isInitial = false) {
+    const url = document.getElementById('sheetUrl').value;
+    if (!url) {
+        if (!isInitial) showToast('Por favor, insira o link da planilha.', 'error');
+        return;
+    }
+
+    const btn = document.getElementById('btnUpdate');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-[10px]"></i> SINCRONIZANDO...';
+
+    try {
+        // 1) Baixa o arquivo XLSX do link e lê como ArrayBuffer
+        const response = await fetch(url);
+        if (!response.ok) throw new Error('Não foi possível acessar o arquivo.');
+
+        const arrayBuffer = await response.arrayBuffer();
+
+        // 2) Lê o workbook a partir do ArrayBuffer (SheetJS)
+        const workbook = XLSX.read(arrayBuffer, { type: 'array' }); // recomendado p/ browser[web:10][web:20]
+
+        // Helper para achar uma aba por nome (tenta variações)
+        const getSheet = (names) => {
+            const lowerNames = workbook.SheetNames.map(n => n.toLowerCase());
+            for (const name of names) {
+                const idx = lowerNames.indexOf(name.toLowerCase());
+                if (idx !== -1) return workbook.Sheets[workbook.SheetNames[idx]];
+            }
+            return null;
+        };
+
+        // 3) Localiza as abas
+        const sheetHistorico = getSheet(['Historico', 'Histórico', 'Historico_KPI']);
+        const sheetAgendados = getSheet(['Agendados', 'Campanhas', 'Agendado']);
+        const sheetGeral     = getSheet(['Geral', 'Resumo', 'Dashboard']);
+
+        if (!sheetHistorico || !sheetAgendados || !sheetGeral) {
+            throw new Error('Não encontrei todas as abas: Histórico, Agendados e Geral.');
+        }
+
+        // 4) Converte cada aba para JSON (linhas)
+        const historicoRows = XLSX.utils.sheet_to_json(sheetHistorico, { defval: null });
+        const agendadosRows = XLSX.utils.sheet_to_json(sheetAgendados, { defval: null });
+        const geralRows     = XLSX.utils.sheet_to_json(sheetGeral, { defval: null });
+
+        // 5) Monta o rawData no formato que o restante do dashboard já espera
+        rawData = {
+            // Aqui você pode guardar também a info de "Última atualização"
+            // — assumindo que esteja na aba Geral (coluna com "Ultima atualizacao")
+            Config: geralRows,
+
+            // Abas diretamente:
+            Historico: historicoRows, // Mes, v25, v26
+            Campanhas: agendadosRows, // Dia, Base, Status, Tema, MesRef (se tiver)
+            Geral: geralRows          // Mes, Realizado, Projetado, UsoGeral, UltimaAtualizacao etc.
+        };
+
+        // 6) Mantém seu comportamento atual
+        localStorage.setItem(STORAGE_KEY, url);
+        autoFilterByUpdateDate(rawData);
+        renderDashboard(rawData);
+
+        if (!isInitial) showToast('Dados atualizados com sucesso!');
+    } catch (err) {
+        console.error("Erro ao processar dados:", err);
+        document.getElementById('lastUpdateDate').innerText = "Erro no link";
+        if (!isInitial) showToast('Falha na atualização. Verifique o link ou a estrutura do arquivo.', 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-rotate"></i> ATUALIZAR';
+    }
+}
+
+function renderDashboard(data) {
+    if (!data) return;
+
+    // -------- Última atualização (aba Geral / Config) --------
+    const config = data.Config || [];
+    let rawUpdate = null;
+    for (let row of config) {
+        if (row['Última atualização'] != null) {
+            rawUpdate = row['Última atualização'];
+            break;
+        }
+    }
+    document.getElementById('lastUpdateDate').innerText = formatDatePtBr(rawUpdate) || 'Não disponível';
+
+    // -------- Banner de filtro e labels --------
+    const banner = document.getElementById('filterBanner');
+    const monthLabels = document.querySelectorAll('.current-filter-label');
+    const chartMain = document.getElementById('mainChart');
+
+    if (selectedMonth) {
+        chartMain.classList.add('chart-filtered');
+        banner.classList.remove('hidden');
+        document.getElementById('selectedMonthName').innerText = selectedMonth;
+    } else {
+        chartMain.classList.remove('chart-filtered');
+        banner.classList.add('hidden');
+    }
+    monthLabels.forEach(label => label.innerText = selectedMonth || 'Total');
+
+    // -------- Gráfico principal de sazonalidade --------
+    const historico = data.Historico || [];
+    chartMain.innerHTML = `<div class="meta-line"><span class="meta-label">META 11.7M</span></div>`;
+    meses.forEach(mes => {
+        const d = historico.find(h => h.Mes === mes) || {v25: 0, v26: 0};
+        const h25 = (parseFloat(d.v25) || 0) / 15000000 * 100;
+        const h26 = (parseFloat(d.v26) || 0) / 15000000 * 100;
+        const div = document.createElement('div');
+        div.className = `bar-group ${selectedMonth === mes ? 'active' : ''}`;
+        div.onclick = () => selectMonth(mes);
+        div.innerHTML = `
+            <div class="bi-bar bar-v25" style="height:${h25}%">
+                <span class="bar-value-v">${((d.v25 || 0) / 1000000).toFixed(1)}M</span>
+            </div>
+            <div class="bi-bar bar-v26" style="height:${h26}%">
+                <span class="bar-value-v">${d.v26 > 0 ? ((d.v26 || 0) / 1000000).toFixed(1) + 'M' : ''}</span>
+            </div>
+            <span class="month-name">${mes}</span>
+        `;
+        chartMain.appendChild(div);
+    });
+
+    // -------- Campanhas (Agendados/Enviados/Cancelados) --------
+    const campanhasRaw = data.Campanhas || [];
+    const campanhas = selectedMonth
+        ? campanhasRaw.filter(c => {
+            const matchMesRef = c.MesRef === selectedMonth;
+            const d = excelValueToDate(c.Dia);
+            const matchDiaMes = d ? meses[d.getMonth()] === selectedMonth : false;
+            return matchMesRef || matchDiaMes;
+          })
+        : campanhasRaw;
+
+    const tables = {
+        ag: document.querySelector('#table-agendados tbody'),
+        en: document.querySelector('#table-pausados tbody'),
+        pa: document.querySelector('#table-pausados-status tbody'),
+        ca: document.querySelector('#table-cancelados tbody')
+    };
+
+    Object.values(tables).forEach(t => { if(t) t.innerHTML = ''; });
+    let sums = { a: 0, e: 0, p: 0, c: 0 };
+
+    campanhas.forEach(c => {
+        const status = (c.Status || '').toLowerCase();
+        const base = parseFloat(c.Base) || 0;
+        const diaFormatado = formatDatePtBr(c.Dia) || '-';
+        const chamado = c.Chamado || '-';
+
+        const row = `<tr>
+            <td>${diaFormatado}</td>
+            <td class="font-bold">${base.toLocaleString()}</td>
+            <td><span class="weight-badge">${((base / META_ALUNOS) * 100).toFixed(2)}%</span></td>
+            <td>${chamado}</td>
+            <td>${c.Tema || c.Status}</td>
+        </tr>`;
+
+        if (status.includes('agendado')) {
+            if(tables.ag) tables.ag.innerHTML += row;
+            sums.a += base;
+        } else if (status.includes('envia')) {
+            if(tables.en) tables.en.innerHTML += row;
+            sums.e += base;
+        } else if (status.includes('pausa')) {
+            if(tables.pa) tables.pa.innerHTML += row;
+            sums.p += base;
+        } else if (status.includes('cancela')) {
+            if(tables.ca) tables.ca.innerHTML += row;
+            sums.c += base;
+        }
+    });
+
+    document.getElementById('sum-agendados').innerText = formatMillions(sums.a);
+    document.getElementById('sum-pausados').innerText = formatMillions(sums.e);
+    document.getElementById('sum-pausados-status').innerText = formatMillions(sums.p);
+    document.getElementById('sum-cancelados').innerText = formatMillions(sums.c);
+
+    renderEmptyTableState(tables.ag, 'Ainda não há agendamentos para este período.');
+    renderEmptyTableState(tables.en, 'Ainda não há envios para este período.');
+    renderEmptyTableState(tables.pa, 'Ainda não há disparos pausados para este período.');
+    renderEmptyTableState(tables.ca, 'Ainda não há cancelamentos para este período.');
+
+    // -------- KPIs (Realizado, Projetado, Uso, Saldo) --------
+    const geralData = data.Geral || [];
+    let currentGeral = selectedMonth ? geralData.find(g => g.Mes === selectedMonth) : {
+        Realizado: geralData.reduce((acc, curr) => acc + (parseFloat(curr.Realizado) || 0), 0),
+        Projetado: geralData.reduce((acc, curr) => acc + (parseFloat(curr.Projetado) || 0), 0),
+        UsoGeral: geralData.reduce((acc, curr) => acc + (parseFloat(curr.UsoGeral) || 0), 0)
+    };
+
+    if(!currentGeral) currentGeral = { Realizado: 0, Projetado: 0, UsoGeral: 0 };
+
+    const realizado = parseFloat(currentGeral.Realizado) || 0;
+
+    // metas
+    const metaEmail = selectedMonth ? META_ALUNOS : (META_ALUNOS * 12);
+    const metaPacote = selectedMonth ? CAPACIDADE_MAX : (CAPACIDADE_MAX * 12);
+
+    // Projetado = total realizado + agendados
+    const totalProjetado = realizado + sums.a;
+    const pctProjetadoMeta = metaEmail ? (totalProjetado / metaEmail) * 100 : 0;
+
+    // Uso alunos (% do realizado em relação à meta de pacote)
+    const pctUsoAlunos = metaPacote ? (realizado / metaPacote) * 100 : 0;
+
+    // Uso geral (valor)
+    const valorUsoGeral = parseFloat(currentGeral.UsoGeral) || 0;
+    const pctUsoGeral = metaPacote ? (valorUsoGeral / metaPacote) * 100 : 0;
+
+    // % da meta e saldo
+    const percMeta = metaEmail ? (realizado / metaEmail) * 100 : 0;
+    const saldoMeta = 100 - percMeta;
+
+        // ==========================================
+    // NOVA LÓGICA DO TETO / META DIÁRIA INJETADA
+    // ==========================================
+    const metaStatusEl = document.getElementById('meta-status-text');
+    const statusMetaTemporal = calcularStatusMetaTemporal(rawUpdate, realizado, META_ALUNOS);
+
+    if (metaStatusEl) {
+        // Limpa as cores e a classe de invisibilidade para resetar o estado
+        metaStatusEl.classList.remove('text-slate-500', 'text-green-600', 'text-red-600', 'text-amber-500', 'invisible');
+
+       // Se nenhum mês estiver selecionado (Visão Total / Anual)
+        if (!selectedMonth) {
+            metaStatusEl.classList.add('text-slate-500');
+            metaStatusEl.textContent = 'Cálculo anual';
+        } else {
+            // Se tiver mês filtrado, exibe a regra normal
+            if (!statusMetaTemporal) {
+                metaStatusEl.classList.add('text-slate-500');
+                metaStatusEl.textContent = 'Status diário da meta indisponível.';
+            } else {
+                const mesAtualizacao = meses[statusMetaTemporal.updateDate.getMonth()];
+
+                if (selectedMonth !== mesAtualizacao) {
+                    metaStatusEl.classList.add('text-amber-500');
+                    metaStatusEl.textContent = `Comparativo diário disponível apenas para ${mesAtualizacao}.`;
+                } else {
+                    const statusLabel = statusMetaTemporal.dentroDaMeta ? 'Dentro da meta' : 'Acima da meta';
+                    const colorClass = statusMetaTemporal.dentroDaMeta ? 'text-green-600' : 'text-red-600';
+
+                    metaStatusEl.classList.add(colorClass);
+                    metaStatusEl.textContent =
+                        `${statusLabel} · Ideal ${formatPctBR(statusMetaTemporal.percentualIdeal)} ` +
+                        `vs Atual ${formatPctBR(statusMetaTemporal.percentualAtual)} ` +
+                        `(${formatSignedPctBR(statusMetaTemporal.diferenca)})`;
+                }
+            }
+        }
+    }
+    // ==========================================
+
+    // REALIZADO
+    document.getElementById('kpi-realizado').innerText = formatMillions(realizado);
+    const kpiPctMetaEl = document.getElementById('kpi-pct-meta');
+
+    if (kpiPctMetaEl) {
+        kpiPctMetaEl.innerText = percMeta.toFixed(2) + '%';
+        kpiPctMetaEl.classList.remove('text-red-500', 'text-red-600', 'text-green-600', 'text-amber-500');
+
+        // Se estamos filtrando por mês e a leitura diária está disponível: usa o ritmo diário
+        if (selectedMonth && statusMetaTemporal) {
+            if (statusMetaTemporal.dentroDaMeta) {
+                kpiPctMetaEl.classList.add('text-green-600');
+            } else {
+                kpiPctMetaEl.classList.add('text-red-600');
+            }
+        // Visão Anual (ou se faltar a data): regra fixa do estourou 100%
+        } else {
+            if (percMeta <= 100) {
+                kpiPctMetaEl.classList.add('text-green-600');
+            } else {
+                kpiPctMetaEl.classList.add('text-red-600');
+            }
+        }
+    }
+
+    // PROJETADO TOTAL
+    document.getElementById('kpi-projetado').innerText = formatMillions(totalProjetado);
+    const projPctEl = document.getElementById('kpi-projetado-pct');
+    if (projPctEl) projPctEl.innerText = pctProjetadoMeta.toFixed(2) + '%';
+
+    // USO ALUNOS
+    const kpiUsoAlunosEl = document.getElementById('kpi-uso-alunos');
+    if (kpiUsoAlunosEl) kpiUsoAlunosEl.innerText = pctUsoAlunos.toFixed(2) + '%';
+
+    // USO GERAL (valor com cor dinâmica)
+    const cardUsoGeral = document.getElementById('card-uso-geral');
+    const usoGeralEl = document.getElementById('kpi-uso-geral');
+    const usoGeralPctEl = document.getElementById('kpi-uso-geral-pct');
+
+    if (usoGeralEl) usoGeralEl.innerText = formatMillions(valorUsoGeral);
+    if (usoGeralPctEl) usoGeralPctEl.innerText = pctUsoGeral.toFixed(2) + '%';
+
+    if (usoGeralEl) usoGeralEl.classList.remove('text-green-600', 'text-amber-500', 'text-red-600');
+    if (usoGeralPctEl) usoGeralPctEl.classList.remove('text-green-600', 'text-amber-500', 'text-red-600');
+    if (cardUsoGeral) cardUsoGeral.classList.remove('border-b-green-500', 'border-b-amber-500', 'border-b-red-500');
+
+    if (pctUsoGeral <= 50) {
+        if(usoGeralEl) usoGeralEl.classList.add('text-green-600');
+        if(usoGeralPctEl) usoGeralPctEl.classList.add('text-green-600');
+        if(cardUsoGeral) cardUsoGeral.classList.add('border-b-green-500');
+    } else if (pctUsoGeral <= 100) {
+        if(usoGeralEl) usoGeralEl.classList.add('text-amber-500');
+        if(usoGeralPctEl) usoGeralPctEl.classList.add('text-amber-500');
+        if(cardUsoGeral) cardUsoGeral.classList.add('border-b-amber-500');
+    } else {
+        if(usoGeralEl) usoGeralEl.classList.add('text-red-600');
+        if(usoGeralPctEl) usoGeralPctEl.classList.add('text-red-600');
+        if(cardUsoGeral) cardUsoGeral.classList.add('border-b-red-500');
+    }
+
+        const cardSaldoMeta = document.getElementById('card-saldo-meta');
+    const saldoEl = document.getElementById('kpi-saldo');
+    const saldoMetaNumber = Number(saldoMeta);
+
+    if (saldoEl) saldoEl.innerText = saldoMetaNumber.toFixed(2) + '%';
+
+    if (saldoEl) saldoEl.classList.remove('text-red-600', 'text-amber-500', 'text-yellow-500', 'text-green-600');
+    if (cardSaldoMeta) cardSaldoMeta.classList.remove('border-b-red-500', 'border-b-amber-500', 'border-b-yellow-500', 'border-b-green-500');
+
+    let estaDentroDoRitmo;
+
+    // Na visão mensal usa o ritmo do dia, na visão anual usa o teto fixo
+    if (selectedMonth && statusMetaTemporal) {
+        estaDentroDoRitmo = statusMetaTemporal.dentroDaMeta;
+    } else {
+        estaDentroDoRitmo = saldoMetaNumber >= 0;
+    }
+
+    if (estaDentroDoRitmo) {
+        if(saldoEl) saldoEl.classList.add('text-green-600');
+        if(cardSaldoMeta) cardSaldoMeta.classList.add('border-b-green-500');
+    } else {
+        if(saldoEl) saldoEl.classList.add('text-red-600');
+        if(cardSaldoMeta) cardSaldoMeta.classList.add('border-b-red-500');
+    }
+
+    // -------- Gráfico Foco (comparativoMarco) --------
+    const comp = document.getElementById('comparativoMarco');
+    if(comp) {
+        comp.innerHTML = '';
+        const hist25 = historico.find(h => h.Mes === selectedMonth);
+        const val25 = selectedMonth ? (hist25 ? (hist25.v25 || 0) : 0) : historico.reduce((a, b) => a + (parseFloat(b.v25) || 0), 0);
+        const hFactor = selectedMonth ? (CAPACIDADE_MAX) : (CAPACIDADE_MAX * 8);
+
+        [
+            { l: selectedMonth ? '2025' : 'T25', v: val25, c: 'bg-blue-300' },
+            { l: selectedMonth ? '2026' : 'T26', v: realizado, c: 'bg-orange-400' },
+            { l: 'PROJ', v: totalProjetado, c: 'bg-green-600' },
+            { l: 'GERAL', v: valorUsoGeral, c: 'bg-green-400' }
+        ].forEach(i => {
+            const div = document.createElement('div');
+            div.className = 'bar-group';
+            div.style.flex = 'none';
+            div.style.cursor = 'default';
+            const heightVal = (parseFloat(i.v) || 0) / hFactor * 100;
+            div.innerHTML = `
+                <div class="bi-bar ${i.c}" style="height:${heightVal}%; width: 38px;">
+                    <span class="bar-value-v">${((parseFloat(i.v) || 0) / 1000000).toFixed(1)}M</span>
+                </div>
+                <span class="month-name">${i.l}</span>
+            `;
+            comp.appendChild(div);
+        });
+    }
+}
+function renderEmptyTableState(tbody, message = 'Nenhum dado encontrado neste período.') {
+    if (!tbody || tbody.children.length > 0) return;
+
+    tbody.innerHTML = `
+        <tr>
+            <td colspan="5" class="table-empty-message py-6 text-center text-slate-400 font-semibold">
+                ${message}
+            </td>
+        </tr>
+    `;
+}
+        function selectMonth(month) {
+            selectedMonth = (selectedMonth === month) ? null : month;
+            renderDashboard(rawData);
+        }
+        function clearSavedLink() {
+            localStorage.removeItem(STORAGE_KEY);
+            document.getElementById('sheetUrl').value = '';
+            showToast('Link removido.', 'error');
+        }
+
+        document.getElementById('uploadExcel').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if(!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                try {
+                    const workbook = XLSX.read(evt.target.result, { type: 'binary' });
+                    const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+                    rawData = { "Config": rows, "Historico": rows.filter(r => r.Mes), "Campanhas": rows.filter(r => r.Status), "Geral": rows.filter(r => r.Realizado) };
+                    autoFilterByUpdateDate(rawData);
+                    renderDashboard(rawData);
+                    showToast('Importação de arquivo concluída!');
+                } catch(e) {
+                    showToast('Erro ao ler o arquivo Excel.', 'error');
+                }
+            };
+            reader.readAsBinaryString(file);
+        });
+
+        // ---------- Tema (claro / escuro) ----------
+function applySavedTheme() {
+    const saved = localStorage.getItem('theme');
+    const prefersDark = window.matchMedia &&
+        window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+    const shouldBeDark = saved === 'dark' || (!saved && prefersDark);
+
+    document.documentElement.classList.toggle('dark', shouldBeDark);
+
+    const isDark = document.documentElement.classList.contains('dark');
+    const moon  = document.getElementById('icon-moon');
+    const sun   = document.getElementById('icon-sun');
+    if (moon && sun) {
+        moon.classList.toggle('hidden', isDark === false);
+        sun .classList.toggle('hidden', isDark === true);
+    }
+}
+
+function toggleTheme() {
+    const isDark = document.documentElement.classList.toggle('dark');
+    localStorage.setItem('theme', isDark ? 'dark' : 'light');
+
+    const moon  = document.getElementById('icon-moon');
+    const sun   = document.getElementById('icon-sun');
+    if (moon && sun) {
+        moon.classList.toggle('hidden', !isDark);
+        sun .classList.toggle('hidden', isDark);
+    }
+}
+
+// inicializa tema ao carregar a página
+applySavedTheme();
+
+// liga o botão
+document.getElementById('themeToggle')?.addEventListener('click', toggleTheme);
+    </script>
+</body>
+</html>
